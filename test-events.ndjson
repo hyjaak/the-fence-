@@ -1,0 +1,5 @@
+{"eventId":"1","ts":"2026-01-06T00:00:00Z","source":"api","type":"latency","severity":2,"tags":["prod"],"message":"ok","metrics":{"p95":100},"context":{"region":"us-east-1"}}
+{"eventId":"2","ts":"2026-01-06T01:00:00Z","source":"api","type":"latency","severity":2,"tags":["prod"],"message":"ok","metrics":{"p95":105},"context":{"region":"us-east-1"}}
+{"eventId":"3","ts":"2026-01-06T02:00:00Z","source":"api","type":"latency","severity":2,"tags":["prod"],"message":"ok","metrics":{"p95":98},"context":{"region":"us-east-1"}}
+{"eventId":"4","ts":"2026-01-06T03:00:00Z","source":"api","type":"latency","severity":2,"tags":["prod"],"message":"ok","metrics":{"p95":102},"context":{"region":"us-east-1"}}
+{"eventId":"5","ts":"2026-01-06T04:00:00Z","source":"api","type":"latency","severity":10,"tags":["prod","alert"],"message":"CRITICAL SPIKE","metrics":{"p95":10000},"context":{"region":"us-east-1"}}
