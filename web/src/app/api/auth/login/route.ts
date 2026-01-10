@@ -8,12 +8,27 @@ export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
   try {
     console.log('[LOGIN] Starting login attempt');
+    console.log('[LOGIN] NODE_ENV:', process.env.NODE_ENV);
+    console.log('[LOGIN] DATABASE_URL exists:', !!process.env.DATABASE_URL);
     
     // Check DATABASE_URL exists
     if (!process.env.DATABASE_URL) {
       console.error('[LOGIN_ERROR] DATABASE_URL environment variable is not set');
+      console.error('[LOGIN_ERROR] Available env vars:', Object.keys(process.env).filter(k => !k.includes('SECRET')));
       return NextResponse.json(
-        { error: 'Database configuration error' },
+        { error: 'Database not configured. Set DATABASE_URL in Vercel environment variables.' },
+        { status: 500 }
+      );
+    }
+
+    // Test database connectivity first
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      console.log('[LOGIN] Database connection verified');
+    } catch (dbError) {
+      console.error('[LOGIN_ERROR] Database connection failed:', dbError);
+      return NextResponse.json(
+        { error: 'Database unavailable. Run supabase-setup.sql in Supabase SQL Editor first.' },
         { status: 500 }
       );
     }
