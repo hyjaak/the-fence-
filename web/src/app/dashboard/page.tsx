@@ -84,13 +84,14 @@ export default function DashboardPage() {
     );
   }
 
-  const demoMode = true;
+  const demoMode = false;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">{demoMode && (
       <div className="bg-yellow-500 text-black px-4 py-2 text-center font-bold sticky top-0 z-50">
         ⚠️ DEMO MODE ACTIVE - MVP with Local Database - No Production Capability
       </div>
+      )}
 
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
@@ -143,8 +144,8 @@ export default function DashboardPage() {
         </div>
 
         <div className="mt-8 text-center text-gray-500 text-sm">
-          <p>Dashboard displaying live data from local SQLite database.</p>
-          <p className="mt-1">All actions are demo-safe simulations. Localhost binding enforced.</p>
+          <p>Dashboard displaying live data from Supabase PostgreSQL.</p>
+          <p className="mt-1">All actions are governed by THE FENCE protocol. Audit trail active.</p>
         </div>
       </main>
     </div>

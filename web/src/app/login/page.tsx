@@ -49,11 +49,6 @@ function LoginForm() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Demo Mode Banner */}
-        <div className="bg-yellow-500 text-black px-4 py-2 rounded-lg mb-6 text-center font-bold">
-          ⚠️ DEMO MODE ACTIVE - Read-Only Display - No Production Capability
-        </div>
-
         {/* Login Card */}
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="text-center mb-6">

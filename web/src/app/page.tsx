@@ -5,11 +5,6 @@ export default function Home() {
     <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto">
-          {/* Demo Mode Banner */}
-          <div className="bg-yellow-500 text-black px-4 py-2 rounded-lg mb-8 text-center font-bold">
-            ⚠️ DEMO MODE ACTIVE - Read-Only Display - No Production Capability
-          </div>
-
           {/* Header */}
           <div className="text-center mb-16">
             <h1 className="text-6xl font-black text-white mb-4">THE FENCE</h1>
