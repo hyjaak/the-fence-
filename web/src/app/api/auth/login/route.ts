@@ -21,18 +21,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Test database connectivity first
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-      console.log('[LOGIN] Database connection verified');
-    } catch (dbError) {
-      console.error('[LOGIN_ERROR] Database connection failed:', dbError);
-      return NextResponse.json(
-        { error: 'Database unavailable. Run supabase-setup.sql in Supabase SQL Editor first.' },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
     const { username, password } = body;
 
