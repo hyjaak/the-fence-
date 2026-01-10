@@ -4,59 +4,115 @@ import { prisma } from '@/lib/prisma';
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
+  const result: any = {
+    ok: false,
+    timestamp: new Date().toISOString(),
+    env: {
+      DATABASE_URL: !!process.env.DATABASE_URL,
+      NODE_ENV: process.env.NODE_ENV,
+    },
+    db: {
+      connected: false,
+      error: null,
+    },
+    tables: {
+      User: false,
+      Session: false,
+      AuditLog: false,
+      Event: false,
+      Guardrail: false,
+      Config: false,
+      SystemState: false,
+    },
+  };
+
   try {
-    // Check if DATABASE_URL is set
+    // Check DATABASE_URL
     if (!process.env.DATABASE_URL) {
-      return NextResponse.json({
-        status: 'error',
-        error: 'DATABASE_URL not configured',
-        details: 'Set DATABASE_URL in Vercel environment variables'
-      }, { status: 500 });
+      result.db.error = 'DATABASE_URL environment variable not set';
+      return NextResponse.json(result, { status: 500 });
     }
 
-    // Try to connect to database
-    await prisma.$queryRaw`SELECT 1`;
+    // Test database connection
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      result.db.connected = true;
+    } catch (dbError) {
+      const errorMsg = dbError instanceof Error ? dbError.message : 'Unknown';
+      result.db.error = `Connection failed: ${errorMsg}`;
+      return NextResponse.json(result, { status: 500 });
+    }
 
-    // Try to query User table
-    const userCount = await prisma.user.count();
+    // Check each table exists and has data
+    try {
+      const userCount = await prisma.user.count();
+      result.tables.User = { exists: true, count: userCount };
+    } catch (e) {
+      result.tables.User = { exists: false, error: e instanceof Error ? e.message : 'Unknown' };
+    }
 
-    return NextResponse.json({
-      status: 'ok',
-      database: 'connected',
-      tables: 'accessible',
-      userCount,
-      timestamp: new Date().toISOString()
-    });
+    try {
+      const sessionCount = await prisma.session.count();
+      result.tables.Session = { exists: true, count: sessionCount };
+    } catch (e) {
+      result.tables.Session = { exists: false, error: e instanceof Error ? e.message : 'Unknown' };
+    }
+
+    try {
+      const auditCount = await prisma.auditLog.count();
+      result.tables.AuditLog = { exists: true, count: auditCount };
+    } catch (e) {
+      result.tables.AuditLog = { exists: false, error: e instanceof Error ? e.message : 'Unknown' };
+    }
+
+    try {
+      const eventCount = await prisma.event.count();
+      result.tables.Event = { exists: true, count: eventCount };
+    } catch (e) {
+      result.tables.Event = { exists: false, error: e instanceof Error ? e.message : 'Unknown' };
+    }
+
+    try {
+      const guardrailCount = await prisma.guardrail.count();
+      result.tables.Guardrail = { exists: true, count: guardrailCount };
+    } catch (e) {
+      result.tables.Guardrail = { exists: false, error: e instanceof Error ? e.message : 'Unknown' };
+    }
+
+    try {
+      const configCount = await prisma.config.count();
+      result.tables.Config = { exists: true, count: configCount };
+    } catch (e) {
+      result.tables.Config = { exists: false, error: e instanceof Error ? e.message : 'Unknown' };
+    }
+
+    try {
+      const stateCount = await prisma.systemState.count();
+      result.tables.SystemState = { exists: true, count: stateCount };
+    } catch (e) {
+      result.tables.SystemState = { exists: false, error: e instanceof Error ? e.message : 'Unknown' };
+    }
+
+    // Overall health
+    const allTablesExist = Object.values(result.tables).every(
+      (t: any) => t.exists === true
+    );
+
+    result.ok = result.db.connected && allTablesExist;
+
+    if (!allTablesExist) {
+      result.message = 'Database connected but some tables missing. Run supabase-setup.sql in Supabase SQL Editor.';
+    } else if (result.tables.User.count === 0) {
+      result.message = 'Tables exist but no users found. Run supabase-setup.sql to seed data.';
+    } else {
+      result.message = 'All systems operational';
+    }
+
+    return NextResponse.json(result, { status: result.ok ? 200 : 500 });
 
   } catch (error) {
     console.error('[HEALTH_CHECK_ERROR]', error);
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    
-    // Check if it's a table not found error
-    if (errorMessage.includes('relation') || errorMessage.includes('does not exist')) {
-      return NextResponse.json({
-        status: 'error',
-        error: 'Database tables not created',
-        details: 'Run supabase-setup.sql in Supabase SQL Editor',
-        errorMessage
-      }, { status: 500 });
-    }
-
-    // Check if it's a connection error
-    if (errorMessage.includes('connect') || errorMessage.includes('ECONNREFUSED')) {
-      return NextResponse.json({
-        status: 'error',
-        error: 'Cannot connect to database',
-        details: 'Check DATABASE_URL is correct',
-        errorMessage
-      }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      status: 'error',
-      error: 'Database health check failed',
-      errorMessage
-    }, { status: 500 });
+    result.db.error = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(result, { status: 500 });
   }
 }

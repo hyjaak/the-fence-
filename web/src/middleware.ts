@@ -14,6 +14,11 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // Allow public access to health check endpoint
+  if (pathname === '/api/health') {
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith('/api') && !pathname.startsWith('/api/auth')) {
     const token = request.cookies.get('fence_session')?.value;
 
