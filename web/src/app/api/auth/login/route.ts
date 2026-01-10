@@ -7,8 +7,21 @@ export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[LOGIN] Starting login attempt');
+    
+    // Check DATABASE_URL exists
+    if (!process.env.DATABASE_URL) {
+      console.error('[LOGIN_ERROR] DATABASE_URL environment variable is not set');
+      return NextResponse.json(
+        { error: 'Database configuration error' },
+        { status: 500 }
+      );
+    }
+
     const body = await request.json();
     const { username, password } = body;
+
+    console.log('[LOGIN] Credentials received for username:', username);
 
     if (!username || !password) {
       return NextResponse.json(
@@ -17,26 +30,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('[LOGIN] Querying database for user:', username);
     const user = await prisma.user.findUnique({
       where: { username },
     });
 
     if (!user) {
+      console.log('[LOGIN] User not found:', username);
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
+    console.log('[LOGIN] User found, verifying password');
     const valid = await bcrypt.compare(password, user.passwordHash);
 
     if (!valid) {
+      console.log('[LOGIN] Invalid password for user:', username);
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
+    console.log('[LOGIN] Password valid, creating session');
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -48,6 +66,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log('[LOGIN] Session created successfully');
     const redirectUrl = new URL('/dashboard', request.url);
     const response = NextResponse.redirect(redirectUrl);
 
@@ -61,11 +80,16 @@ export async function POST(request: NextRequest) {
       path: '/',
     });
 
+    console.log('[LOGIN] Login successful, redirecting to dashboard');
     return response;
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('[LOGIN_ERROR] Full error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      error: error,
+    });
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown' },
       { status: 500 }
     );
   }
