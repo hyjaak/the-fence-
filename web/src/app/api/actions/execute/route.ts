@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request: NextRequest) {
   if (process.env.NEXT_PHASE === 'phase-production-build') {
@@ -11,6 +12,7 @@ export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get('fence_session')?.value;
     const role = request.cookies.get('fence_role')?.value;
+    const username = request.cookies.get('fence_user')?.value;
 
     if (!token || !role) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,6 +21,14 @@ export async function POST(request: NextRequest) {
     if (role !== 'ADMIN' && role !== 'OPERATOR') {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
+
+    await logAudit({
+      actorRole: role as 'ADMIN' | 'OPERATOR',
+      actorUsername: username || null,
+      action: 'EXECUTE_ACTION_REQUEST',
+      status: 'SUCCESS',
+      req: request,
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

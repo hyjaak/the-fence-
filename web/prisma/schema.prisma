@@ -31,13 +31,22 @@ model Session {
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action    String
-  details   String?
-  ip        String?
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actorRole     String   // ADMIN, OPERATOR, SYSTEM, UNKNOWN
+  actorUsername String?
+  action        String   // LOGIN_SUCCESS, LOGOUT, DEPLOY_CHANGE_REQUEST, etc.
+  status        String   // SUCCESS, FAIL
+  ip            String?
+  userAgent     String?
+  meta          Json?    // Extra context as JSON
+  details       String?  // Legacy field, kept for compatibility
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([actorRole])
 }
 
 model Event {

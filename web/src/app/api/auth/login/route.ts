@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request: NextRequest) {
   if (process.env.NEXT_PHASE === 'phase-production-build') {
@@ -42,6 +43,14 @@ export async function POST(request: NextRequest) {
 
     if (!userRole) {
       console.log('[LOGIN] Invalid credentials for user:', username);
+      await logAudit({
+        actorRole: 'UNKNOWN',
+        actorUsername: username,
+        action: 'LOGIN_FAILED',
+        status: 'FAIL',
+        meta: { reason: 'invalid_credentials' },
+        req: request,
+      });
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
@@ -87,10 +96,25 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('[LOGIN] Login successful, cookies set');
+    await logAudit({
+      actorRole: userRole as 'ADMIN' | 'OPERATOR',
+      actorUsername: username,
+      action: 'LOGIN_SUCCESS',
+      status: 'SUCCESS',
+      meta: { role: userRole },
+      req: request,
+    });
     return response;
   } catch (error) {
     console.error('[LOGIN_ERROR] Exception caught:', error);
     console.error('[LOGIN_ERROR] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    await logAudit({
+      actorRole: 'UNKNOWN',
+      action: 'LOGIN_ERROR',
+      status: 'FAIL',
+      meta: { error: error instanceof Error ? error.message : 'Unknown' },
+      req: request,
+    });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

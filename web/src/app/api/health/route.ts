@@ -12,12 +12,14 @@ export async function GET(request: NextRequest) {
   const result: any = {
     ok: false,
     timestamp: new Date().toISOString(),
+    build: process.env.VERCEL_GIT_COMMIT_SHA || 'local',
     env: {
       DATABASE_URL: !!process.env.DATABASE_URL,
       NODE_ENV: process.env.NODE_ENV,
     },
     db: {
       connected: false,
+      latencyMs: null,
       error: null,
     },
     tables: {
@@ -38,10 +40,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(result, { status: 500 });
     }
 
-    // Test database connection
+    // Test database connection with latency measurement
     try {
+      const startTime = Date.now();
       await prisma.$queryRaw`SELECT 1`;
+      const endTime = Date.now();
       result.db.connected = true;
+      result.db.latencyMs = endTime - startTime;
     } catch (dbError) {
       const errorMsg = dbError instanceof Error ? dbError.message : 'Unknown';
       result.db.error = `Connection failed: ${errorMsg}`;

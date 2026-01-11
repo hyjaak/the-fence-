@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   if (process.env.NEXT_PHASE === 'phase-production-build') {
@@ -17,57 +18,89 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const mockSystemState = {
-      state: 'OPERATIONAL',
-      message: 'All systems nominal',
-      lastUpdate: new Date().toISOString(),
-    };
+    // Try to fetch real data from database
+    let dbAvailable = true;
+    let systemState = null;
+    let events = [];
+    let guardrails = [];
 
-    const mockEvents = [
-      {
-        id: '1',
-        timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-        type: 'SYSTEM',
-        description: 'System initialized',
-        severity: 'info',
-      },
-      {
-        id: '2',
-        timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
-        type: 'AUTH',
-        description: `${username} logged in`,
-        severity: 'info',
-      },
-    ];
+    try {
+      // Test DB connection with a simple query
+      await prisma.$queryRaw`SELECT 1`;
 
-    const mockGuardrails = [
-      {
-        id: '1',
-        name: 'Execution Budget',
-        status: 'safe',
-        threshold: '1000',
-        currentValue: '142',
-      },
-      {
-        id: '2',
-        name: 'State Coherence',
-        status: 'safe',
-        threshold: '95%',
-        currentValue: '98.2%',
-      },
-      {
-        id: '3',
-        name: 'Action Approval Rate',
-        status: 'warning',
-        threshold: '80%',
-        currentValue: '76.5%',
-      },
-    ];
+      // Fetch real data
+      const stateRecord = await prisma.systemState.findFirst();
+      systemState = stateRecord || {
+        state: 'OPERATIONAL',
+        message: 'All systems nominal',
+        lastUpdate: new Date().toISOString(),
+      };
+
+      const recentEvents = await prisma.event.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+      });
+      events = recentEvents.map(e => ({
+        id: e.id,
+        timestamp: e.createdAt.toISOString(),
+        type: e.type,
+        description: e.message,
+        severity: 'info',
+      }));
+
+      const activeGuardrails = await prisma.guardrail.findMany();
+      guardrails = activeGuardrails.map(g => ({
+        id: g.id,
+        name: g.name,
+        status: g.status,
+        threshold: g.threshold,
+        currentValue: g.current,
+      }));
+    } catch (dbError) {
+      console.error('[DASHBOARD] Database unavailable, using fallback data:', dbError);
+      dbAvailable = false;
+
+      // Fallback to safe mock data
+      systemState = {
+        state: 'DEGRADED',
+        message: 'Database temporarily unavailable - read-only mode',
+        lastUpdate: new Date().toISOString(),
+      };
+
+      events = [
+        {
+          id: 'mock-1',
+          timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+          type: 'SYSTEM',
+          description: 'System running in read-only mode',
+          severity: 'warning',
+        },
+      ];
+
+      guardrails = [
+        {
+          id: 'mock-1',
+          name: 'Execution Budget',
+          status: 'unknown',
+          threshold: '1000',
+          currentValue: 'N/A',
+        },
+        {
+          id: 'mock-2',
+          name: 'State Coherence',
+          status: 'unknown',
+          threshold: '95%',
+          currentValue: 'N/A',
+        },
+      ];
+    }
 
     return NextResponse.json({
-      systemState: mockSystemState,
-      events: mockEvents,
-      guardrails: mockGuardrails,
+      systemStatus: dbAvailable ? 'OPERATIONAL' : 'DEGRADED',
+      mode: dbAvailable ? 'NORMAL' : 'READ_ONLY',
+      systemState,
+      events,
+      guardrails,
       user: {
         username,
         role,
@@ -75,9 +108,22 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Dashboard summary error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    
+    // Even if everything fails, return safe fallback
+    return NextResponse.json({
+      systemStatus: 'DEGRADED',
+      mode: 'READ_ONLY',
+      systemState: {
+        state: 'ERROR',
+        message: 'Service temporarily unavailable',
+        lastUpdate: new Date().toISOString(),
+      },
+      events: [],
+      guardrails: [],
+      user: {
+        username: 'unknown',
+        role: 'UNKNOWN',
+      },
+    }, { status: 200 }); // Return 200, not 500 - graceful degradation
   }
 }
