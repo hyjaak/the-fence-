@@ -9,11 +9,15 @@ export async function POST(request: NextRequest) {
     return new Response(null, { status: 204 });
   }
 
+  console.log('[LOGIN] Starting login request');
+
   try {
     const body = await request.json();
+    console.log('[LOGIN] Request body parsed, username:', body.username);
     const { username, password } = body;
 
     if (!username || !password) {
+      console.log('[LOGIN] Missing username or password');
       return NextResponse.json(
         { error: 'Username and password required' },
         { status: 400 }
@@ -25,6 +29,9 @@ export async function POST(request: NextRequest) {
     const OPERATOR_USER = process.env.OPERATOR_USERNAME || 'operator';
     const OPERATOR_PASS = process.env.OPERATOR_PASSWORD || 'operator123';
 
+    console.log('[LOGIN] Environment check - ADMIN_USER exists:', !!process.env.ADMIN_USERNAME);
+    console.log('[LOGIN] Environment check - ADMIN_PASS exists:', !!process.env.ADMIN_PASSWORD);
+
     let userRole = null;
 
     if (username === ADMIN_USER && password === ADMIN_PASS) {
@@ -34,16 +41,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (!userRole) {
+      console.log('[LOGIN] Invalid credentials for user:', username);
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
+    console.log('[LOGIN] User authenticated, role:', userRole);
     const token = randomBytes(32).toString('hex');
 
-    const redirectUrl = new URL('/dashboard', request.url);
-    const response = NextResponse.redirect(redirectUrl);
+    const response = NextResponse.json(
+      { success: true, role: userRole },
+      { status: 200 }
+    );
 
     response.cookies.set({
       name: 'fence_session',
@@ -75,9 +86,11 @@ export async function POST(request: NextRequest) {
       path: '/',
     });
 
+    console.log('[LOGIN] Login successful, cookies set');
     return response;
   } catch (error) {
-    console.error('[LOGIN_ERROR]', error);
+    console.error('[LOGIN_ERROR] Exception caught:', error);
+    console.error('[LOGIN_ERROR] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

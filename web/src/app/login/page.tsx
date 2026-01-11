@@ -25,22 +25,18 @@ function LoginForm() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ username, password }),
-        redirect: 'manual',
       });
 
-      if (response.type === 'opaqueredirect' || response.status === 307 || response.status === 302) {
-        window.location.href = '/dashboard';
-        return;
-      }
+      const data = await response.json();
 
       if (response.ok) {
         window.location.href = redirect;
       } else {
-        const data = await response.json();
         setError(data.error || 'Login failed');
         setLoading(false);
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError('Network error - please try again');
       setLoading(false);
     }
