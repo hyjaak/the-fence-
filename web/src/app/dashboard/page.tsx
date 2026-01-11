@@ -11,6 +11,8 @@ import type { Role } from '@/lib/types';
 import type { RiskState, Event, Guardrail } from '@/lib/mockData';
 
 interface DashboardData {
+  systemStatus?: 'OPERATIONAL' | 'DEGRADED';
+  mode?: 'NORMAL' | 'READ_ONLY';
   systemState: {
     state: RiskState;
     message: string;
@@ -28,6 +30,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [readOnlyMode, setReadOnlyMode] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -49,6 +52,13 @@ export default function DashboardPage() {
 
       const dashboardData = await response.json();
       setData(dashboardData);
+      
+      // Check for read-only mode
+      if (dashboardData.mode === 'READ_ONLY' || dashboardData.systemStatus === 'DEGRADED') {
+        setReadOnlyMode(true);
+      } else {
+        setReadOnlyMode(false);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -87,10 +97,16 @@ export default function DashboardPage() {
   const demoMode = false;
 
   return (
-    <div className="min-h-screen bg-gray-50">{demoMode && (
-      <div className="bg-yellow-500 text-black px-4 py-2 text-center font-bold sticky top-0 z-50">
-        ⚠️ DEMO MODE ACTIVE - MVP with Local Database - No Production Capability
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      {readOnlyMode && (
+        <div className="bg-orange-500 text-white px-4 py-3 text-center font-semibold sticky top-0 z-50 shadow-md">
+          ⚠️ READ-ONLY MODE - Database temporarily unavailable. Displaying cached data. Actions disabled.
+        </div>
+      )}
+      {demoMode && (
+        <div className="bg-yellow-500 text-black px-4 py-2 text-center font-bold sticky top-0 z-50">
+          ⚠️ DEMO MODE ACTIVE - MVP with Local Database - No Production Capability
+        </div>
       )}
 
       <header className="bg-white shadow-sm">
@@ -140,7 +156,7 @@ export default function DashboardPage() {
             <GuardrailsSummary guardrails={data.guardrails} />
           </div>
 
-          <LockedControls role={data.user.role} demoMode={demoMode} onActionComplete={fetchDashboardData} />
+          <LockedControls role={data.user.role} demoMode={demoMode || readOnlyMode} onActionComplete={fetchDashboardData} />
         </div>
 
         <div className="mt-8 text-center text-gray-500 text-sm">
