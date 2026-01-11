@@ -7,6 +7,10 @@ import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 
 export async function POST(request: NextRequest) {
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return new Response(null, { status: 204 });
+  }
+
   try {
     console.log('[LOGIN] Starting login attempt');
     console.log('[LOGIN] NODE_ENV:', process.env.NODE_ENV);

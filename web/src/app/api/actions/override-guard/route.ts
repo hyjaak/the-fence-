@@ -5,6 +5,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return new Response(null, { status: 204 });
+  }
+
   try {
     const token = request.cookies.get('fence_session')?.value;
 
