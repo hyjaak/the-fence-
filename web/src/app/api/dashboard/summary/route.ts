@@ -2,7 +2,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   if (process.env.NEXT_PHASE === 'phase-production-build') {
@@ -11,61 +10,67 @@ export async function GET(request: NextRequest) {
 
   try {
     const token = request.cookies.get('fence_session')?.value;
+    const username = request.cookies.get('fence_user')?.value;
+    const role = request.cookies.get('fence_role')?.value;
 
-    if (!token) {
+    if (!token || !username || !role) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const session = await prisma.session.findUnique({
-      where: { token },
-      include: { user: true },
-    });
+    const mockSystemState = {
+      state: 'OPERATIONAL',
+      message: 'All systems nominal',
+      lastUpdate: new Date().toISOString(),
+    };
 
-    if (!session || session.expiresAt < new Date()) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const mockEvents = [
+      {
+        id: '1',
+        timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+        type: 'SYSTEM',
+        description: 'System initialized',
+        severity: 'info',
+      },
+      {
+        id: '2',
+        timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
+        type: 'AUTH',
+        description: `${username} logged in`,
+        severity: 'info',
+      },
+    ];
 
-    const systemState = await prisma.systemState.findUnique({
-      where: { id: 1 },
-    });
-
-    const events = await prisma.event.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-    });
-
-    const guardrails = await prisma.guardrail.findMany({
-      orderBy: { name: 'asc' },
-    });
-
-    const failingCount = guardrails.filter(g => g.status === 'FAILING').length;
-    const warningCount = guardrails.filter(g => g.status === 'WARNING').length;
-
-    const status = failingCount > 0 ? 'RED' : warningCount > 0 ? 'YELLOW' : 'GREEN';
+    const mockGuardrails = [
+      {
+        id: '1',
+        name: 'Execution Budget',
+        status: 'safe',
+        threshold: '1000',
+        currentValue: '142',
+      },
+      {
+        id: '2',
+        name: 'State Coherence',
+        status: 'safe',
+        threshold: '95%',
+        currentValue: '98.2%',
+      },
+      {
+        id: '3',
+        name: 'Action Approval Rate',
+        status: 'warning',
+        threshold: '80%',
+        currentValue: '76.5%',
+      },
+    ];
 
     return NextResponse.json({
-      systemState: {
-        state: systemState?.state || status,
-        message: systemState?.message || 'System operational',
-        lastUpdate: events[0]?.createdAt.toISOString() || new Date().toISOString(),
-      },
-      events: events.map((e) => ({
-        id: e.id,
-        timestamp: e.createdAt.toISOString(),
-        type: e.type,
-        description: e.message,
-        severity: 'info',
-      })),
-      guardrails: guardrails.map((g) => ({
-        id: g.id,
-        name: g.name,
-        status: g.status.toLowerCase(),
-        threshold: g.threshold,
-        currentValue: g.current,
-      })),
+      systemState: mockSystemState,
+      events: mockEvents,
+      guardrails: mockGuardrails,
       user: {
-        username: session.user.username,
-        role: session.user.role,
+        username,
+        role,
       },
     });
   } catch (error) {
